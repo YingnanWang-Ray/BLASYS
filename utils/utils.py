@@ -297,7 +297,7 @@ def create_w(n, k, W, f1, modulename, formula_file, abc):
 
     f1.write('endmodule\n\n')
 
-def create_h(m, k, H, f1, modulename):
+def create_h(m, k, H, f1, modulename, is_xor):
     f1.write('module '+modulename+'_h'+str(k)+'('+v2w('k', k)+', '+ v2w('out', m)+');\n')
     f1.write('input '+v2w('k', k)+';\n')
     f1.write('output '+v2w('out', m)+';\n')
@@ -306,11 +306,17 @@ def create_h(m, k, H, f1, modulename):
         f1.write('assign out'+str(m-i-1)+' = ')
         not_first=0
         constant=1
+
+        if is_xor[i] == 1:
+            operate = '^'
+        else:
+            operate = '|'
+
         for j in  range(k):
             if H[j,i] == 1:
                 constant=0
                 if (not_first):
-                    f1.write(' ^ k'+str(k - j -1))
+                    f1.write(' {} k'.format(operate) +str(k - j -1))
                 else:
                     f1.write('k'+str(k - j - 1))
                 not_first=1
@@ -322,7 +328,7 @@ def create_h(m, k, H, f1, modulename):
 
 
 
-def create_wh(n, m, k, W, H, fname, modulename, output_dir, abc, formula_file):
+def create_wh(n, m, k, W, H, fname, modulename, output_dir, abc, formula_file, is_xor):
     f1=open(fname+'_approx_k='+str(k)+'.v','w')
     f1.write('module ' +modulename+'(' + v2w_top('pi', n)+', '+ v2w_top('po', m)+');\n')
     f1.write('input '+v2w_top('pi', n)+';\n')
@@ -332,14 +338,14 @@ def create_wh(n, m, k, W, H, fname, modulename, output_dir, abc, formula_file):
     f1.write(modulename+'_h'+str(k)+' DUT2 ('+v2w_top('k', k)+', '+ v2w_top('po', m)+');\n')
     f1.write('endmodule\n\n')
     create_w(n, k, W, f1, modulename, formula_file, abc)
-    create_h(m, k, H, f1, modulename)
+    create_h(m, k, H, f1, modulename, is_xor)
     f1.close
 
 def approximate(inputfile, k, worker, i):
 
     modulename = worker.modulenames[i]
 
-    BMF( inputfile+'.truth', k, True)
+    is_xor = BMF( inputfile+'.truth', k, True)
     W = np.loadtxt(inputfile + '.truth_w_' + str(k), dtype=int)
     H = np.loadtxt(inputfile + '.truth_h_' + str(k), dtype=int)
     formula_file = os.path.join(worker.output, 'bmf_partition', modulename, modulename+'_formula.v')
@@ -347,7 +353,7 @@ def approximate(inputfile, k, worker, i):
         W = W.reshape((W.size, 1))
         H = H.reshape((1, H.size))
 
-    create_wh(worker.input_list[i], worker.output_list[i], k, W, H, inputfile, modulename, worker.output, worker.path['abc'], formula_file)
+    create_wh(worker.input_list[i], worker.output_list[i], k, W, H, inputfile, modulename, worker.output, worker.path['abc'], formula_file, is_xor)
 
 
 

@@ -37,30 +37,48 @@ def BMF(truthtable, k, binary = False):
     
     # Enumerate possible columns
     column_list = []
-    multi_list = []
+    multi_list_xor = []
+    multi_list_or = []
     for i in range(2**k):
         binary_str = '{0:0>{1}}'.format(bin(i)[2:], k)
         column = np.array(list(binary_str)).astype(np.uint8)
         column_list.append(column)
         prod = np.matmul(best_S, column)
-        prod = prod % 2
-        multi_list.append(prod)
+        prod_xor = prod % 2
+        multi_list_xor.append(prod_xor)
+        prod[prod > 0] = 1
+        multi_list_or.append(prod)
     
     # Brute force best column in B
+    is_xor = np.zeros(col)
+    new_best_result = input_truth.copy()
     for i in range(col):
         ground_truth = input_truth[:, i]
         best_similar = 0
         best_idx = -1
         for j in range(2**k):
-            similar = sum(multi_list[j] == ground_truth)
-            if similar > best_similar:
+            similar_xor = sum(multi_list_xor[j] == ground_truth)
+            similar_or = sum(multi_list_or[j] == ground_truth)
+            if similar_xor > best_similar:
                 best_idx = j
-                best_similar = similar
+                best_similar = similar_xor
+                is_xor[i] = 1
+            if similar_or > best_similar:
+                best_idx = j
+                best_similar = similar_or
+                is_xor[i] = 0
+
         best_B[:, i] = column_list[best_idx]
+        if is_xor[i] == 1:
+            new_best_result[:, i] = multi_list_xor[best_idx]
+        else:
+            new_best_result[:, i] = multi_list_or[best_idx]
 
     
     write_matrix(best_B, B_path)
     write_matrix(best_S, S_path)
-    new_best_result = np.matmul(best_S, best_B)
-    new_best_result = new_best_result % 2
+    # new_best_result = np.matmul(best_S, best_B)
+    # new_best_result = new_best_result % 2
     write_matrix(new_best_result, mult_path)
+    
+    return is_xor
